@@ -4,6 +4,7 @@ class Board:
     def __init__(self):
         self.board = torch.zeros(9, dtype=torch.float32)
         self.sum = 0
+        self.game = []
     
     def printBoard(self):
         for i in range(3):
@@ -13,6 +14,7 @@ class Board:
         if self.board[val].item() == 0:
             self.sum += 1
             self.board[val] = id
+            self.game.append((id, val))
             return True
         return False
     
@@ -90,8 +92,12 @@ class Board:
     def clear(self):
         self.board = torch.zeros(9, dtype=torch.float32)
         self.sum = 0
+        self.game = []
     
     @property
     def board_state(self):
         return self.board
     
+    @property
+    def game_state(self):
+        return self.game
