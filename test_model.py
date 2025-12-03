@@ -317,19 +317,4 @@ def main(model_path=None):
             print("Invalid choice!")
 
 if __name__ == "__main__":
-    import sys
-    
-    # Parse command-line arguments
-    model_path = None
-    if len(sys.argv) > 1:
-        if sys.argv[1] in ['-h', '--help']:
-            print("Usage: python test_model.py [model_path]")
-            print("\nExamples:")
-            print("  python test_model.py                    # Auto-detect model file")
-            print("  python test_model.py models/model.pth   # Load specific .pth file")
-            print("  python test_model.py models/model.pkl   # Load specific .pkl file")
-            sys.exit(0)
-        else:
-            model_path = sys.argv[1]
-    
-    main(model_path)
+    main()
