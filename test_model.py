@@ -32,11 +32,35 @@ class NeuralNet(nn.Module):
         out = self.softmax(out)
         return out
 
-def load_model():
-    """Load the trained model from pickle file"""
-    print("Loading model...")
-    with open('models/model.pkl', 'rb') as f:
-        model = pickle.load(f)
+def load_model(model_path='models/model.pth'):
+    """Load the trained model from .pth (state dict) or .pkl file
+    
+    Args:
+        model_path: Path to the model file (.pth or .pkl)
+    
+    Returns:
+        Loaded model in evaluation mode
+    """
+    print(f"Loading model from {model_path}...")
+    
+    # Model hyperparameters (must match training.ipynb)
+    input_size = 9
+    hidden_sizes = (128, 128, 64, 32)
+    num_classes = 9
+    
+    if model_path.endswith('.pth'):
+        # Load from PyTorch state dict (recommended method)
+        model = NeuralNet(input_size, hidden_sizes, num_classes)
+        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+        print("Model loaded from .pth file (state dict)")
+    elif model_path.endswith('.pkl'):
+        # Load from pickle file (legacy method)
+        with open(model_path, 'rb') as f:
+            model = pickle.load(f)
+        print("Model loaded from .pkl file (pickled object)")
+    else:
+        raise ValueError(f"Unsupported file format: {model_path}. Use .pth or .pkl")
+    
     model.eval()  # Set to evaluation mode
     print("Model loaded successfully!\n")
     return model
@@ -238,9 +262,27 @@ def test_specific_board(model):
     print_board_nice(board)
     get_model_prediction(model, board)
 
-def main():
-    """Main interactive menu"""
-    model = load_model()
+def main(model_path=None):
+    """Main interactive menu
+    
+    Args:
+        model_path: Path to model file. If None, tries model.pth first, then model.pkl
+    """
+    # Try to load model
+    if model_path is None:
+        # Try .pth first (recommended), fall back to .pkl
+        import os
+        if os.path.exists('models/model.pth'):
+            model_path = 'models/model.pth'
+        elif os.path.exists('models/model.pkl'):
+            model_path = 'models/model.pkl'
+            print("Note: Using legacy .pkl format. Consider saving as .pth instead.")
+        else:
+            print("Error: No model file found!")
+            print("Please ensure either models/model.pth or models/model.pkl exists.")
+            return
+    
+    model = load_model(model_path)
     
     while True:
         print("\n" + "="*50)
@@ -275,4 +317,19 @@ def main():
             print("Invalid choice!")
 
 if __name__ == "__main__":
-    main()
+    import sys
+    
+    # Parse command-line arguments
+    model_path = None
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ['-h', '--help']:
+            print("Usage: python test_model.py [model_path]")
+            print("\nExamples:")
+            print("  python test_model.py                    # Auto-detect model file")
+            print("  python test_model.py models/model.pth   # Load specific .pth file")
+            print("  python test_model.py models/model.pkl   # Load specific .pkl file")
+            sys.exit(0)
+        else:
+            model_path = sys.argv[1]
+    
+    main(model_path)
