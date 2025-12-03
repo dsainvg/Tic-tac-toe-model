@@ -35,7 +35,7 @@ class NeuralNet(nn.Module):
 def load_model():
     """Load the trained model from pickle file"""
     print("Loading model...")
-    with open('model.pkl', 'rb') as f:
+    with open('models/model.pkl', 'rb') as f:
         model = pickle.load(f)
     model.eval()  # Set to evaluation mode
     print("Model loaded successfully!\n")
@@ -141,7 +141,7 @@ def play_game_human_vs_ai(model):
         # Switch player
         current_player = -current_player
 
-def ai_vs_ai(model, num_games=5):
+def ai_vs_ai(model, num_games=5, verbose=True):
     """Watch AI play against itself"""
     print(f"\n{'='*50}")
     print(f"AI vs AI - {num_games} games")
@@ -152,31 +152,56 @@ def ai_vs_ai(model, num_games=5):
     
     for game_num in range(num_games):
         board = Board()
-        print(f"\nGame {game_num + 1}:")
+        print(f"\n{'='*50}")
+        print(f"Game {game_num + 1}:")
+        print(f"{'='*50}")
         current_player = 1 if game_num % 2 == 0 else -1
         
+        # Show initial empty board
+        print_board_nice(board)
+        
         for turn in range(9):
-            move = get_model_prediction(model, board)
-            if move is None:
-                break
+            print(f"\nTurn {turn + 1} - Player {'X' if current_player == 1 else 'O'}'s move:")
+            
+            # Get model's move
+            with torch.no_grad():
+                board_tensor = board.board_state.unsqueeze(0)
+                prediction = model(board_tensor)
+                
+                # Get best valid move
+                valid_positions = (board.board_state == 0).nonzero().flatten()
+                if len(valid_positions) == 0:
+                    break
+                    
+                probs = prediction[0].clone()
+                for i in range(9):
+                    if board.board_state[i] != 0:
+                        probs[i] = -1
+                move = probs.argmax().item()
+            
+            print(f"AI chooses position: {move}")
             status, result = board.play(current_player, move)
             
+            # Show board after each move
+            print_board_nice(board)
+            
             if result == "win":
-                print_board_nice(board)
-                print(f"Player {'X' if current_player == 1 else 'O'} won!")
+                print(f"🎉 Player {'X' if current_player == 1 else 'O'} won!")
                 if current_player == 1:
                     wins += 1
                 break
             elif result == "draw":
-                print_board_nice(board)
-                print("Draw!")
+                print("🤝 It's a draw!")
                 draws += 1
                 break
             
             current_player = -current_player
     
     print(f"\n{'='*50}")
-    print(f"Results: {wins} wins for X, {num_games - wins - draws} wins for O, {draws} draws")
+    print(f"Final Results:")
+    print(f"X wins: {wins}")
+    print(f"O wins: {num_games - wins - draws}")
+    print(f"Draws: {draws}")
     print(f"{'='*50}\n")
 
 def test_specific_board(model):
