@@ -45,7 +45,7 @@ def load_model(model_path='models/model.pth'):
     
     # Model hyperparameters (must match training.ipynb)
     input_size = 9
-    hidden_sizes = (128, 128, 64, 32)
+    hidden_sizes = (256, 512, 64, 32)
     num_classes = 9
     
     if model_path.endswith('.pth'):
@@ -114,6 +114,33 @@ def get_model_prediction(model, board):
             print(f"\nAI chooses position: {best_move}")
             return best_move
         return None
+
+def _print_prediction_for_board(label, model, board):
+    print(f"\n{label}:")
+    with torch.no_grad():
+        prediction = model(board.board_state.unsqueeze(0))[0]
+    for i, prob in enumerate(prediction):
+        status = "OCCUPIED" if board.board_state[i] != 0 else "FREE"
+        print(f"Position {i}: {prob.item():.6f} ({status})")
+    
+    # Check for symmetry issues
+    free_positions = [i for i in range(9) if board.board_state[i] == 0]
+    if len(free_positions) > 1:
+        probs = [prediction[i].item() for i in free_positions]
+        max_prob = max(probs)
+        min_prob = min(probs)
+        if max_prob > 0 and min_prob / max_prob < 0.01:  # More than 100x difference
+            print(f"  ⚠️  Symmetry issue detected: max={max_prob:.6f}, min={min_prob:.6f}")
+
+def check_prediction_probabilities(model, opponent_id=-1):
+    """Check prediction probabilities for an empty board and each single opponent placement"""
+    empty_board = Board()
+    _print_prediction_for_board("Empty board", model, empty_board)
+
+    for pos in range(9):
+        board = Board()
+        board.play(opponent_id, pos)
+        _print_prediction_for_board(f"Opponent only at {pos}", model, board)
 
 def play_game_human_vs_ai(model):
     """Play a game: human (X=1) vs AI (O=-1)"""
@@ -263,7 +290,7 @@ def test_specific_board(model):
     get_model_prediction(model, board)
 
 def main(model_path=None):
-    """Main interactive menu
+    """Check prediction probabilities for empty board and single opponent placements
     
     Args:
         model_path: Path to model file. If None, tries model.pth first, then model.pkl
@@ -272,49 +299,24 @@ def main(model_path=None):
     if model_path is None:
         # Try .pth first (recommended), fall back to .pkl
         import os
-        if os.path.exists('models/model.pth'):
+        if os.path.exists('model.pth'):
+            model_path = 'model.pth'
+        elif os.path.exists('models/model.pth'):
             model_path = 'models/model.pth'
         elif os.path.exists('models/model.pkl'):
             model_path = 'models/model.pkl'
             print("Note: Using legacy .pkl format. Consider saving as .pth instead.")
         else:
             print("Error: No model file found!")
-            print("Please ensure either models/model.pth or models/model.pkl exists.")
+            print("Please ensure either model.pth, models/model.pth or models/model.pkl exists.")
             return
     
     model = load_model(model_path)
     
-    while True:
-        print("\n" + "="*50)
-        print("Tic-Tac-Toe AI Model Testing")
-        print("="*50)
-        print("1. Play against AI (You are X)")
-        print("2. Watch AI vs AI")
-        print("3. Test specific board state")
-        print("4. Show model architecture")
-        print("5. Exit")
-        print("="*50)
-        
-        choice = input("\nChoose an option (1-5): ").strip()
-        
-        if choice == '1':
-            play_game_human_vs_ai(model)
-        elif choice == '2':
-            try:
-                num_games = int(input("How many games? "))
-                ai_vs_ai(model, num_games)
-            except ValueError:
-                print("Invalid number!")
-        elif choice == '3':
-            test_specific_board(model)
-        elif choice == '4':
-            print("\nModel Architecture:")
-            print(model)
-        elif choice == '5':
-            print("\nGoodbye!")
-            break
-        else:
-            print("Invalid choice!")
+    print("\n" + "="*50)
+    print("Checking Prediction Probabilities")
+    print("="*50)
+    check_prediction_probabilities(model, opponent_id=-1)
 
 if __name__ == "__main__":
     main()
